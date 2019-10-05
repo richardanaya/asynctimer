@@ -4,10 +4,13 @@ mod sleep;
 
 use crate::executor::run;
 use crate::js_api::say_num;
-use crate::sleep::sleep;
+use crate::sleep::{handle_timeout,sleep};
+
+// This file represents the two entry points into our module
 
 #[no_mangle]
 pub fn main() -> () {
+    // start an executor and give the first task
     run(async {
         say_num(1);
         sleep(1000).await;
@@ -19,5 +22,7 @@ pub fn main() -> () {
 
 #[no_mangle]
 pub fn timeout_response(id: i32) -> () {
-    say_num(id);
+    // take the id given to us by window.setTimeout
+    // and all the closure that wakes the right task
+    handle_timeout(id);
 }

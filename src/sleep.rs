@@ -77,3 +77,12 @@ impl TimerFuture {
 pub fn sleep(millis: i32) -> TimerFuture {
     TimerFuture::new(millis)
 }
+
+pub fn handle_timeout(id: i32) -> () {
+    // find the callback associated with the timeout id
+    let h = sleep_handlers().lock().unwrap();
+    let handler = h.handlers.get(&id).unwrap();
+    // call the callback that will wake the task!
+    handler();
+}
+
