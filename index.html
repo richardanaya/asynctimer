@@ -1,0 +1,18 @@
+<script>
+let mod = null;
+fetch('asynctimer.wasm').then(response => response.arrayBuffer())
+.then(bytes => WebAssembly.instantiate(bytes,{env:{
+    _say_num:function(n){
+        console.log(n);
+    },
+    _timeout:function(id,t){
+        window.setTimeout(function(){
+            mod.instance.exports.timeout_response(id);
+        },t);
+    }
+}})
+    .then(module => {
+        mod = module;
+        module.instance.exports.main();
+    }));
+</script>
