@@ -1,6 +1,6 @@
 # Async-Await in Web Assembly
 
-This project shows a toy async-await executor written from scratch for web assembly. The goal is to make this real and see output in the console:
+This project shows a toy async-await executor written from scratch for web assembly. The goal is to make this real and see output:
 
 ```rust
 pub fn main() -> () {
