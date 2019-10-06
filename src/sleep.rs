@@ -8,6 +8,9 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
+
+use crate::js_api::say_num;
+
 struct SleepTracker {
     cur_id: i32,
     handlers: HashMap<i32, Box<dyn Fn() -> () + Send + 'static>>,
@@ -63,6 +66,7 @@ impl TimerFuture {
                 let mut shared_state = thread_shared_state.lock().unwrap();
                 shared_state.completed = true;
                 if let Some(waker) = shared_state.waker.take() {
+                    std::mem::drop(shared_state);
                     waker.wake()
                 }
             }),

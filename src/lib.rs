@@ -1,10 +1,8 @@
 mod executor;
 mod js_api;
 mod sleep;
-mod task;
-mod waker;
 
-use crate::executor::run;
+use crate::executor::Executor;
 use crate::js_api::say_num;
 use crate::sleep::{handle_timeout, sleep};
 
@@ -13,7 +11,7 @@ use crate::sleep::{handle_timeout, sleep};
 #[no_mangle]
 pub fn main() -> () {
     // start an executor and give the first task
-    run(async {
+    Executor::spawn(async {
         say_num(1);
         sleep(1000).await;
         say_num(2);

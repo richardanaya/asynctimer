@@ -1,44 +1,57 @@
-use crate::task::{make_waker, Task};
-use std::{
-    future::Future,
-    sync::{
-        mpsc::{sync_channel, Receiver, SyncSender},
-        Arc, Mutex,
+use once_cell::sync::OnceCell;
+use {
+    std::{
+        future::Future,
+        pin::Pin,
+        sync::{Arc, Mutex},
+        task::{Context, Poll},
     },
-    task::{Context, Poll},
+    woke::{waker_ref, Woke},
 };
 
-struct Executor {
-    ready_queue: Receiver<Arc<Task>>,
+// our executor just holds one task
+pub struct Executor {
+    task: Option<Arc<Task>>,
 }
 
-#[derive(Clone)]
-struct Spawner {
-    task_sender: SyncSender<Arc<Task>>,
+// Our task holds onto a future the executor can poll
+struct Task {
+    pub future: Mutex<Option<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>>,
 }
 
-fn new_executor_and_spawner() -> (Executor, Spawner) {
-    const MAX_QUEUED_TASKS: usize = 10_000;
-    let (task_sender, ready_queue) = sync_channel(MAX_QUEUED_TASKS);
-    (Executor { ready_queue }, Spawner { task_sender })
-}
-
-impl Spawner {
-    fn spawn(&self, future: impl Future<Output = ()> + 'static + Send) {
-        let task = Arc::new(Task {
-            future: Mutex::new(Some(Box::pin(future))),
-            task_sender: self.task_sender.clone(),
-        });
-        self.task_sender.send(task).expect("too many tasks queued");
+// specify how we want our tasks to wake up
+impl Woke for Task {
+    fn wake_by_ref(_: &Arc<Self>) {
+        // run the executor again because something finished!
+        Executor::run()
     }
 }
 
 impl Executor {
-    fn run(&self) {
-        while let Ok(task) = self.ready_queue.recv() {
+    pub fn spawn(future: impl Future<Output = ()> + 'static + Send) {
+        // store our task in global state
+        let task = Arc::new(Task {
+            future: Mutex::new(Some(Box::pin(future))),
+        });
+        let mut e = get_executor().lock().unwrap();
+        e.task = Some(task);
+
+        // we drop this early because otherwise run() will cause a mutex lock
+        std::mem::drop(e);
+
+        // get things going!
+        Executor::run();
+    }
+    fn run() {
+        // get our task from global state
+        let e = get_executor().lock().unwrap();
+        if let Some(task) = &e.task {
             let mut future_slot = task.future.lock().unwrap();
             if let Some(mut future) = future_slot.take() {
-                let context = &mut Context::from_waker(make_waker(&task));
+                // make a waker for our task
+                let waker = waker_ref(&task);
+                // poll our future and give it a waker
+                let context = &mut Context::from_waker(&*waker);
                 if let Poll::Pending = future.as_mut().poll(context) {
                     *future_slot = Some(future);
                 }
@@ -47,12 +60,8 @@ impl Executor {
     }
 }
 
-pub fn run(future: impl Future<Output = ()> + 'static + Send) {
-    let (executor, spawner) = new_executor_and_spawner();
-
-    spawner.spawn(future);
-
-    drop(spawner);
-
-    executor.run();
+// get a global holder of our one task
+fn get_executor() -> &'static Mutex<Executor> {
+    static INSTANCE: OnceCell<Mutex<Executor>> = OnceCell::new();
+    INSTANCE.get_or_init(|| Mutex::new(Executor { task: None }))
 }
