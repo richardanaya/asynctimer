@@ -1,4 +1,4 @@
-use crate::task::Task;
+use crate::task::{make_waker, Task};
 use std::{
     future::Future,
     sync::{
@@ -38,7 +38,7 @@ impl Executor {
         while let Ok(task) = self.ready_queue.recv() {
             let mut future_slot = task.future.lock().unwrap();
             if let Some(mut future) = future_slot.take() {
-                let context = &mut Context::from_waker(task.get_waker());
+                let context = &mut Context::from_waker(make_waker(&task));
                 if let Poll::Pending = future.as_mut().poll(context) {
                     *future_slot = Some(future);
                 }

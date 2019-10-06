@@ -1,4 +1,4 @@
-use crate::waker::{make_waker, ArcWake};
+use crate::waker::{noop_waker_ref, ArcWake};
 use std::{
     future::Future,
     pin::Pin,
@@ -11,12 +11,6 @@ pub struct Task {
     pub task_sender: SyncSender<Arc<Task>>,
 }
 
-impl Task {
-    pub fn get_waker(&self) -> &'static Waker {
-        make_waker(self)
-    }
-}
-
 impl ArcWake for Task {
     fn wake_by_ref(arc_self: &Arc<Self>) {
         let cloned = arc_self.clone();
@@ -25,4 +19,8 @@ impl ArcWake for Task {
             .send(cloned)
             .expect("too many tasks queued");
     }
+}
+
+pub fn make_waker<'a>(a: &'a Arc<Task>) -> &'a Waker {
+    noop_waker_ref()
 }
