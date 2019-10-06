@@ -1,6 +1,6 @@
 use core::cell::UnsafeCell;
-use std::task::{RawWaker, RawWakerVTable, Waker};
 use std::sync::Arc;
+use std::task::{RawWaker, RawWakerVTable, Waker};
 
 unsafe fn noop_clone(_data: *const ()) -> RawWaker {
     noop_raw_waker()
@@ -33,6 +33,6 @@ pub trait ArcWake: Send + Sync {
     fn wake_by_ref(arc_self: &Arc<Self>);
 }
 
-pub fn make_waker(_:&impl ArcWake) -> &'static Waker {
+pub fn make_waker(_: &impl ArcWake) -> &'static Waker {
     noop_waker_ref()
 }
