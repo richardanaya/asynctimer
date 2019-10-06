@@ -1,13 +1,12 @@
+use crate::task::Task;
 use std::{
     future::Future,
     sync::{
         mpsc::{sync_channel, Receiver, SyncSender},
         Arc, Mutex,
     },
-    task::{RawWaker, RawWakerVTable,Waker,Context,Poll},
-    pin::Pin
+    task::{Context, Poll},
 };
-use core::cell::UnsafeCell;
 
 struct Executor {
     ready_queue: Receiver<Arc<Task>>,
@@ -17,38 +16,6 @@ struct Executor {
 struct Spawner {
     task_sender: SyncSender<Arc<Task>>,
 }
-
-struct Task {
-    future: Mutex<Option<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>>,
-    task_sender: SyncSender<Arc<Task>>,
-}
-
-unsafe fn noop_clone(_data: *const ()) -> RawWaker {
-    noop_raw_waker()
-}
-
-fn noop_raw_waker() -> RawWaker {
-    RawWaker::new(core::ptr::null(), &NOOP_WAKER_VTABLE)
-}
-
-unsafe fn noop(_data: *const ()) {}
-
-const NOOP_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(noop_clone, noop, noop, noop);
-
-pub fn noop_waker() -> Waker {
-    unsafe {
-        Waker::from_raw(noop_raw_waker())
-    }
-}
-
-pub fn noop_waker_ref() -> &'static Waker {
-    thread_local! {
-        static NOOP_WAKER_INSTANCE: UnsafeCell<Waker> =
-            UnsafeCell::new(noop_waker());
-    }
-    NOOP_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
-}
-
 
 fn new_executor_and_spawner() -> (Executor, Spawner) {
     const MAX_QUEUED_TASKS: usize = 10_000;
@@ -66,13 +33,12 @@ impl Spawner {
     }
 }
 
-
 impl Executor {
     fn run(&self) {
         while let Ok(task) = self.ready_queue.recv() {
             let mut future_slot = task.future.lock().unwrap();
             if let Some(mut future) = future_slot.take() {
-                let context = &mut Context::from_waker(noop_waker_ref());
+                let context = &mut Context::from_waker(task.get_waker());
                 if let Poll::Pending = future.as_mut().poll(context) {
                     *future_slot = Some(future);
                 }

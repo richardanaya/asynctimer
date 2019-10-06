@@ -1,10 +1,12 @@
 mod executor;
 mod js_api;
 mod sleep;
+mod task;
+mod waker;
 
 use crate::executor::run;
 use crate::js_api::say_num;
-use crate::sleep::{handle_timeout,sleep};
+use crate::sleep::{handle_timeout, sleep};
 
 // This file represents the two entry points into our module
 

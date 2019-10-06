@@ -85,4 +85,3 @@ pub fn handle_timeout(id: i32) -> () {
     // call the callback that will wake the task!
     handler();
 }
-
