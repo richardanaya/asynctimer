@@ -19,4 +19,4 @@ This library only uses `once_cell` for global state and [woke](https://github.co
 
 Warning: this project builds only with Rust 1.39 and above
 
-Limitations: this executor can only run a single top level future (i.e. no multiple spawns)
+Limitations: this executor can only run a single top level future (i.e. no multiple spawns), management of timeout does not scale. Don't use this code for production, use it to learn! 
