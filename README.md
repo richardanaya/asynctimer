@@ -19,3 +19,5 @@ This library only uses `once_cell` for easy non-macro global state and [woke](ht
 Warning: this project builds only with Rust 1.39 and above
 
 See it working here in your console [here](https://richardanaya.github.io/asynctimer/)
+
+Limitations: this executor can only run a single top level future (i.e. no multiple spawns)
