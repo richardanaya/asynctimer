@@ -4,7 +4,6 @@ This project shows a toy async-await executor written from scratch for web assem
 
 ```rust
 pub fn main() -> () {
-    // start an executor and give the first task
     Executor::spawn(async {
         say_num(1);
         sleep(1000).await;
