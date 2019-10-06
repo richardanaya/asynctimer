@@ -5,15 +5,12 @@ use std::{
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
-    task::{Context, Poll, Waker},
+    task::{Context, Poll, Waker}
 };
-
-
-use crate::js_api::say_num;
 
 struct SleepTracker {
     cur_id: i32,
-    handlers: HashMap<i32, Box<dyn Fn() -> () + Send + 'static>>,
+    handlers: HashMap<i32, Arc<Mutex<Box<dyn Fn() -> () + Send + 'static>>>>,
 }
 
 fn sleep_handlers() -> &'static Mutex<SleepTracker> {
@@ -62,14 +59,14 @@ impl TimerFuture {
         let id = h.cur_id;
         h.handlers.insert(
             id,
-            Box::new(move || {
+            Arc::new(Mutex::new(Box::new(move || {
                 let mut shared_state = thread_shared_state.lock().unwrap();
                 shared_state.completed = true;
                 if let Some(waker) = shared_state.waker.take() {
                     std::mem::drop(shared_state);
                     waker.wake()
                 }
-            }),
+            }))),
         );
 
         timeout(id, millis);
@@ -85,7 +82,9 @@ pub fn sleep(millis: i32) -> TimerFuture {
 pub fn handle_timeout(id: i32) -> () {
     // find the callback associated with the timeout id
     let h = sleep_handlers().lock().unwrap();
-    let handler = h.handlers.get(&id).unwrap();
+    let handler_ref = h.handlers.get(&id).unwrap().clone();
+    std::mem::drop(h);
     // call the callback that will wake the task!
-    handler();
+    let handler = handler_ref.lock().unwrap();
+    handler()
 }

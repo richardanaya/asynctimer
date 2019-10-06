@@ -8,6 +8,7 @@ use {
     },
     woke::{waker_ref, Woke},
 };
+use crate::js_api::say_num;
 
 // our executor just holds one task
 pub struct Executor {
@@ -43,8 +44,10 @@ impl Executor {
         Executor::run();
     }
     fn run() {
+        say_num(300);
         // get our task from global state
         let e = get_executor().lock().unwrap();
+        say_num(301);
         if let Some(task) = &e.task {
             let mut future_slot = task.future.lock().unwrap();
             if let Some(mut future) = future_slot.take() {
@@ -52,6 +55,7 @@ impl Executor {
                 let waker = waker_ref(&task);
                 // poll our future and give it a waker
                 let context = &mut Context::from_waker(&*waker);
+                say_num(302);
                 if let Poll::Pending = future.as_mut().poll(context) {
                     *future_slot = Some(future);
                 }
