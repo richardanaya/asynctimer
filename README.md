@@ -13,7 +13,7 @@ pub fn main() -> () {
     });
 }
 ```
-See it working here in your console [here](https://richardanaya.github.io/asynctimer/)
+See it working [here](https://richardanaya.github.io/asynctimer/)
 
 This library only uses `once_cell` for global state and [woke](https://github.com/richardanaya/woke/) for waker creation (because the pointer magic for that is crazy).
 
