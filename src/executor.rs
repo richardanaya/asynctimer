@@ -4,8 +4,10 @@ use std::{
         mpsc::{sync_channel, Receiver, SyncSender},
         Arc, Mutex,
     },
-    task::{RawWaker, RawWakerVTable,Waker,Context,Poll}
+    task::{RawWaker, RawWakerVTable,Waker,Context,Poll},
+    pin::Pin
 };
+use core::cell::UnsafeCell;
 
 struct Executor {
     ready_queue: Receiver<Arc<Task>>,
@@ -17,7 +19,7 @@ struct Spawner {
 }
 
 struct Task {
-    future: Mutex<Option<Box<dyn Future<Output = ()>>>>,
+    future: Mutex<Option<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>>,
     task_sender: SyncSender<Arc<Task>>,
 }
 
@@ -32,11 +34,19 @@ fn noop_raw_waker() -> RawWaker {
 unsafe fn noop(_data: *const ()) {}
 
 const NOOP_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(noop_clone, noop, noop, noop);
-    
-impl Task {
-    fn get_waker(&self) -> Waker {
+
+pub fn noop_waker() -> Waker {
+    unsafe {
         Waker::from_raw(noop_raw_waker())
     }
+}
+
+pub fn noop_waker_ref() -> &'static Waker {
+    thread_local! {
+        static NOOP_WAKER_INSTANCE: UnsafeCell<Waker> =
+            UnsafeCell::new(noop_waker());
+    }
+    NOOP_WAKER_INSTANCE.with(|l| unsafe { &*l.get() })
 }
 
 
@@ -48,21 +58,21 @@ fn new_executor_and_spawner() -> (Executor, Spawner) {
 
 impl Spawner {
     fn spawn(&self, future: impl Future<Output = ()> + 'static + Send) {
-        let future = Box::new(future);
         let task = Arc::new(Task {
-            future: Mutex::new(Some(future)),
+            future: Mutex::new(Some(Box::pin(future))),
             task_sender: self.task_sender.clone(),
         });
         self.task_sender.send(task).expect("too many tasks queued");
     }
 }
 
+
 impl Executor {
     fn run(&self) {
         while let Ok(task) = self.ready_queue.recv() {
             let mut future_slot = task.future.lock().unwrap();
             if let Some(mut future) = future_slot.take() {
-                let context = &mut Context::from_waker(&task.get_waker());
+                let context = &mut Context::from_waker(noop_waker_ref());
                 if let Poll::Pending = future.as_mut().poll(context) {
                     *future_slot = Some(future);
                 }
