@@ -5,7 +5,7 @@ use std::{
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
-    task::{Context, Poll, Waker}
+    task::{Context, Poll, Waker},
 };
 
 struct SleepTracker {
