@@ -3,7 +3,7 @@ let mod = null;
 fetch('asynctimer.wasm').then(response => response.arrayBuffer())
 .then(bytes => WebAssembly.instantiate(bytes,{env:{
     _say_num:function(n){
-        console.log(n);
+        document.body.innerHTML += n+"<br>"
     },
     _timeout:function(id,t){
         window.setTimeout(function(){
